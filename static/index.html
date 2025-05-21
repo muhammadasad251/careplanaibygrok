@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Care Plan Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6 text-center">Care Plan Generator</h1>
+
+        <!-- Generate Plan Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Generate Care Plan</h2>
+            <form id="generate-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Patient Name</label>
+                        <input type="text" name="patient_name" required class="mt-1 p-2 w-full border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Date of Birth</label>
+                        <input type="text" name="date_of_birth" placeholder="DD/MM/YYYY" required class="mt-1 p-2 w-full border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Gender</label>
+                        <select name="gender" required class="mt-1 p-2 w-full border rounded-md">
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">NHS Number</label>
+                        <input type="text" name="nhs_number" required class="mt-1 p-2 w-full border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Date of Assessment</label>
+                        <input type="text" name="date_of_assessment" placeholder="DD/MM/YYYY" required class="mt-1 p-2 w-full border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Mobility</label>
+                        <input type="text" name="mobility" required class="mt-1 p-2 w-full border rounded-md">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700">Medical History</label>
+                        <textarea name="medical_history" required class="mt-1 p-2 w-full border rounded-md" rows="4"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Language</label>
+                        <select name="language" class="mt-1 p-2 w-full border rounded-md">
+                            <option value="None">None</option>
+                            <option value="PL">Polish</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Generate Plan</button>
+            </form>
+        </div>
+
+        <!-- Upload Plan Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Upload Patient Health Record (PDF)</h2>
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Patient Name (Optional)</label>
+                    <input type="text" name="patient_name" class="mt-1 p-2 w-full border rounded-md">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">PDF File</label>
+                    <input type="file" name="file" accept=".pdf" required class="mt-1 p-2 w-full border rounded-md">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Language</label>
+                    <select name="language" class="mt-1 p-2 w-full border rounded-md">
+                        <option value="None">None</option>
+                        <option value="PL">Polish</option>
+                    </select>
+                </div>
+                <button type="submit" class="bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Upload and Generate Plan</button>
+            </form>
+        </div>
+
+        <!-- Response Area -->
+        <div id="response" class="bg-white p-6 rounded-lg shadow-md hidden">
+            <h2 class="text-2xl font-semibold mb-4">Care Plan Details</h2>
+            <div id="extracted-data"></div>
+            <div id="care-plan" class="mt-4"></div>
+            <div id="simplified-plan" class="mt-4"></div>
+            <div id="translated-plan" class="mt-4"></div>
+            <div id="pdf-download" class="mt-4"></div>
+            <div id="error" class="text-red-500 mt-4 hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('generate-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('Generate form submitted');
+            const formData = new FormData(e.target);
+            const responseDiv = document.getElementById('response');
+            const errorDiv = document.getElementById('error');
+            errorDiv.classList.add('hidden');
+            responseDiv.classList.add('hidden');
+
+            try {
+                console.log('Sending fetch to /generate_plan');
+                const response = await fetch('/generate_plan', {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('Fetch response:', response.status, response.statusText);
+                const data = await response.json();
+                if (response.ok) {
+                    console.log('Response data:', data);
+                    displayResponse(data);
+                } else {
+                    console.error('API error:', data);
+                    errorDiv.textContent = data.error || 'Failed to generate care plan';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Fetch error:', err);
+                errorDiv.textContent = 'Error: ' + err.message;
+                errorDiv.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('Upload form submitted');
+            const formData = new FormData(e.target);
+            const fileInput = e.target.querySelector('input[name="file"]');
+            if (!fileInput.files.length) {
+                console.error('No file selected');
+                document.getElementById('error').textContent = 'Please select a PDF file';
+                document.getElementById('error').classList.remove('hidden');
+                return;
+            }
+            console.log('FormData contents:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}:`, value instanceof File ? value.name : value);
+            }
+            const responseDiv = document.getElementById('response');
+            const errorDiv = document.getElementById('error');
+            errorDiv.classList.add('hidden');
+            responseDiv.classList.add('hidden');
+
+            try {
+                console.log('Sending fetch to /upload_plan');
+                const response = await fetch('/upload_plan', {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('Fetch response:', response.status, response.statusText);
+                const data = await response.json();
+                if (response.ok) {
+                    console.log('Response data:', data);
+                    displayResponse(data);
+                } else {
+                    console.error('API error:', data);
+                    errorDiv.textContent = data.error || 'Failed to process uploaded plan';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Fetch error:', err);
+                errorDiv.textContent = 'Error: ' + err.message;
+                errorDiv.classList.remove('hidden');
+            }
+        });
+
+        function displayResponse(data) {
+            const responseDiv = document.getElementById('response');
+            const extractedDataDiv = document.getElementById('extracted-data');
+            const carePlanDiv = document.getElementById('care-plan');
+            const simplifiedPlanDiv = document.getElementById('simplified-plan');
+            const translatedPlanDiv = document.getElementById('translated-plan');
+            const pdfDownloadDiv = document.getElementById('pdf-download');
+
+            extractedDataDiv.innerHTML = `
+                <h3 class="text-xl font-semibold mb-2">Extracted Data</h3>
+                <p><strong>Patient Name:</strong> ${data.patient_name}</p>
+                <p><strong>Date of Birth:</strong> ${data.date_of_birth}</p>
+                <p><strong>Gender:</strong> ${data.gender}</p>
+                <p><strong>NHS Number:</strong> ${data.nhs_number}</p>
+                <p><strong>Date of Assessment:</strong> ${data.date_of_assessment}</p>
+                <p><strong>Medical History:</strong> ${data.medical_history}</p>
+                <p><strong>Mobility:</strong> ${data.mobility}</p>
+            `;
+
+            let carePlanHtml = '<h3 class="text-xl font-semibold mb-2">Care Plan</h3>';
+            try {
+                const carePlan = JSON.parse(data.care_plan);
+                carePlanHtml += '<div class="space-y-4">';
+                if (carePlan.Summary) {
+                    carePlanHtml += `
+                        <div>
+                            <h4 class="text-lg font-medium">Brief Summary</h4>
+                            <p>${carePlan.Summary}</p>
+                        </div>
+                    `;
+                }
+                if (carePlan.Schedule) {
+                    carePlanHtml += `
+                        <div>
+                            <h4 class="text-lg font-medium">Daily Schedule</h4>
+                            <ul class="list-disc pl-5">
+                                ${carePlan.Schedule.map(item => `<li>${item}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+                if (carePlan.Medications) {
+                    carePlanHtml += `
+                        <div>
+                            <h4 class="text-lg font-medium">Medications</h4>
+                            <ul class="list-disc pl-5">
+                                ${carePlan.Medications.map(item => `<li>${item}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+                if (carePlan.Tasks) {
+                    carePlanHtml += `
+                        <div>
+                            <h4 class="text-lg font-medium">Tasks</h4>
+                            <ul class="list-disc pl-5">
+                                ${carePlan.Tasks.map(item => `<li>${item}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+                carePlanHtml += '</div>';
+            } catch (e) {
+                carePlanHtml += `<p>${data.care_plan}</p>`;
+            }
+            carePlanDiv.innerHTML = carePlanHtml;
+
+            simplifiedPlanDiv.innerHTML = `
+                <h3 class="text-xl font-semibold mb-2">Simplified Plan (English)</h3>
+                <p class="whitespace-pre-line">${data.simplified_plan}</p>
+            `;
+
+            translatedPlanDiv.innerHTML = data.translated_plan
+                ? `
+                    <h3 class="text-xl font-semibold mb-2">Translated Plan (Polish)</h3>
+                    <p class="whitespace-pre-line">${data.translated_plan}</p>
+                `
+                : '';
+
+            pdfDownloadDiv.innerHTML = `
+                <a href="${data.pdf_url}" class="text-blue-500 hover:underline" download>Download PDF</a>
+            `;
+
+            responseDiv.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
